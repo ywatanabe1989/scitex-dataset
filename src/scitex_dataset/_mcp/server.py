@@ -9,35 +9,18 @@ MCP server for scitex-dataset - unified scientific dataset discovery.
 Usage:
     fastmcp run scitex_dataset._mcp.server:mcp
     # or
-    scitex-dataset mcp run
+    scitex-dataset mcp start
 """
 
 from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
 
-MCP_INSTRUCTIONS = """
-SciTeX Dataset: Unified interface for scientific dataset discovery.
-
-Available sources:
-- OpenNeuro: BIDS neuroimaging (MRI, EEG, MEG, iEEG, PET)
-- DANDI: NWB neurophysiology data
-- PhysioNet: EEG, ECG, physiological signals
-
-Workflow:
-1. Use fetch tools to get dataset metadata from repositories
-2. Use search tool to filter datasets by criteria
-3. Results include URLs for direct access to data
-
-Example:
-    # Find EEG datasets with 20+ subjects
-    datasets = openneuro_fetch(max_datasets=100)
-    results = search(datasets, modality="eeg", min_subjects=20)
-"""
+from .._branding import get_mcp_instructions, get_mcp_server_name
 
 mcp = FastMCP(
-    name="scitex-dataset",
-    instructions=MCP_INSTRUCTIONS,
+    name=get_mcp_server_name(),
+    instructions=get_mcp_instructions(),
 )
 
 
