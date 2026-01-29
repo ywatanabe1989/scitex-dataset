@@ -465,7 +465,7 @@ def mcp_install(claude_code: bool) -> None:
         click.echo()
         click.echo('  "scitex-dataset": {')
         click.echo('    "command": "scitex-dataset",')
-        click.echo('    "args": ["mcp", "run"]')
+        click.echo('    "args": ["mcp", "start"]')
         click.echo("  }")
     else:
         click.echo("scitex-dataset MCP Server Installation")
@@ -474,6 +474,30 @@ def mcp_install(claude_code: bool) -> None:
         click.echo("1. Install: pip install scitex-dataset[mcp]")
         click.echo("2. Config:  scitex-dataset mcp install --claude-code")
         click.echo("3. Test:    scitex-dataset mcp doctor")
+
+
+# Shell completion
+@main.command()
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
+def completion(shell: str) -> None:
+    """Generate shell completion script.
+
+    \b
+    Usage:
+      eval "$(scitex-dataset completion bash)"   # Bash
+      eval "$(scitex-dataset completion zsh)"    # Zsh
+    """
+    import subprocess
+    import sys
+
+    env = {"_SCITEX_DATASET_COMPLETE": f"{shell}_source"}
+    result = subprocess.run(
+        [sys.executable, "-m", "scitex_dataset._cli"],
+        env={**dict(__import__("os").environ), **env},
+        capture_output=True,
+        text=True,
+    )
+    click.echo(result.stdout)
 
 
 if __name__ == "__main__":

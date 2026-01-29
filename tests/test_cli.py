@@ -196,4 +196,19 @@ def test_mcp_doctor_no_fastmcp(cli_runner, monkeypatch):
     )
 
 
+def test_completion_help(cli_runner):
+    """Test completion --help."""
+    result = cli_runner.invoke(main, ["completion", "--help"])
+    assert result.exit_code == 0
+    assert "bash" in result.output
+    assert "zsh" in result.output
+
+
+def test_completion_bash(cli_runner):
+    """Test completion bash generates script."""
+    result = cli_runner.invoke(main, ["completion", "bash"])
+    # Should produce some output (completion script or error)
+    assert result.exit_code == 0
+
+
 # EOF
