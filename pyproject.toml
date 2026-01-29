@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scitex-dataset"
+version = "0.1.0"
+description = "Dataset fetcher for neuroscience research (OpenNeuro, BIDS, etc.)"
+readme = "README.md"
+license = "AGPL-3.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "Yusuke Watanabe", email = "ywatanabe@scitex.ai" },
+]
+keywords = [
+    "neuroscience",
+    "datasets",
+    "openneuro",
+    "dandi",
+    "physionet",
+    "bids",
+    "nwb",
+    "mri",
+    "eeg",
+    "fmri",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "httpx>=0.24.0",
+    "click>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pre-commit>=3.5.0",
+]
+mcp = [
+    "fastmcp>=2.0.0",
+]
+scitex = [
+    "scitex>=2.0.0",
+]
+all = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "fastmcp>=2.0.0",
+    "scitex>=2.0.0",
+]
+
+[project.scripts]
+scitex-dataset = "scitex_dataset._cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ywatanabe1989/scitex-dataset"
+Documentation = "https://github.com/ywatanabe1989/scitex-dataset#readme"
+Repository = "https://github.com/ywatanabe1989/scitex-dataset.git"
+Issues = "https://github.com/ywatanabe1989/scitex-dataset/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scitex_dataset"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
