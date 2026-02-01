@@ -211,4 +211,32 @@ def test_completion_bash(cli_runner):
     assert result.exit_code == 0
 
 
+def test_list_python_apis(cli_runner):
+    """Test list-python-apis command."""
+    result = cli_runner.invoke(main, ["list-python-apis"])
+    assert result.exit_code == 0
+    assert "scitex_dataset" in result.output
+    assert "[M]" in result.output  # Module marker
+    assert "[F]" in result.output  # Function marker
+
+
+def test_list_python_apis_verbose(cli_runner):
+    """Test list-python-apis with verbose output."""
+    result = cli_runner.invoke(main, ["list-python-apis", "-v"])
+    assert result.exit_code == 0
+    assert "fetch_all_datasets" in result.output
+
+
+def test_list_python_apis_json(cli_runner):
+    """Test list-python-apis JSON output."""
+    result = cli_runner.invoke(main, ["list-python-apis", "--json"])
+    assert result.exit_code == 0
+    import json
+
+    data = json.loads(result.output)
+    assert isinstance(data, list)
+    assert len(data) > 0
+    assert "Type" in data[0]
+
+
 # EOF

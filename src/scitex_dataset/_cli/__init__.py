@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Timestamp: "2026-01-29 22:45:00 (ywatanabe)"
+# Timestamp: "2026-01-30 09:45:00 (ywatanabe)"
 # File: /home/ywatanabe/proj/scitex-dataset/src/scitex_dataset/_cli/__init__.py
 
 """Command-line interface for scitex-dataset."""
@@ -11,6 +11,8 @@ from pathlib import Path
 import click
 
 from .. import __version__
+from ._introspect import list_python_apis
+from ._mcp_commands import mcp
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
@@ -51,6 +53,11 @@ def main(ctx: click.Context, version: bool, help_recursive: bool) -> None:
 
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
+
+
+# Register subcommand groups
+main.add_command(mcp)
+main.add_command(list_python_apis)
 
 
 # OpenNeuro command
@@ -151,6 +158,42 @@ def physionet(max_datasets: int, output: str, verbose: bool) -> None:
         click.echo(f"Fetched {len(formatted)} databases")
 
 
+# Zenodo command
+@main.command()
+@click.option("-q", "--query", default="", help="Search query.")
+@click.option("-n", "--max-datasets", default=0, help="Max datasets (0=all).")
+@click.option("-o", "--output", type=click.Path(), help="Output JSON file.")
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output.")
+def zenodo(query: str, max_datasets: int, output: str, verbose: bool) -> None:
+    """Fetch datasets from Zenodo (general scientific repository)."""
+    from ..general.zenodo import fetch_all_datasets, format_dataset
+
+    if verbose:
+        click.echo("Fetching datasets from Zenodo...")
+        if query:
+            click.echo(f"  Query: {query}")
+
+    datasets = fetch_all_datasets(
+        query=query,
+        max_datasets=max_datasets if max_datasets > 0 else None,
+    )
+
+    if not datasets:
+        click.echo("No datasets fetched", err=True)
+        raise SystemExit(1)
+
+    formatted = [format_dataset(ds) for ds in datasets]
+
+    if output:
+        Path(output).write_text(json.dumps(formatted, indent=2))
+        click.echo(f"Saved {len(formatted)} datasets to {output}")
+    else:
+        if verbose:
+            for ds in formatted[:10]:
+                click.echo(f"  {ds['id']}: {ds['name'][:50]}")
+        click.echo(f"Fetched {len(formatted)} datasets")
+
+
 # Database commands
 @main.group(invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @click.option("--help-recursive", is_flag=True, help="Show help for all commands.")
@@ -172,7 +215,7 @@ def db(ctx: click.Context, help_recursive: bool):
     "-s",
     "--sources",
     multiple=True,
-    type=click.Choice(["openneuro", "dandi", "physionet"]),
+    type=click.Choice(["openneuro", "dandi", "physionet", "zenodo"]),
     help="Sources to index (default: all).",
 )
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output.")
@@ -196,7 +239,9 @@ def db_build(sources: tuple, verbose: bool) -> None:
 
 @db.command("search")
 @click.argument("query", required=False)
-@click.option("-s", "--source", type=click.Choice(["openneuro", "dandi", "physionet"]))
+@click.option(
+    "-s", "--source", type=click.Choice(["openneuro", "dandi", "physionet", "zenodo"])
+)
 @click.option("-m", "--modality", help="Filter by modality (mri, eeg, etc.).")
 @click.option("--min-subjects", type=int, help="Minimum subjects.")
 @click.option("--max-subjects", type=int, help="Maximum subjects.")
@@ -278,204 +323,6 @@ def db_clear() -> None:
         click.echo("Database not found.")
 
 
-# MCP commands
-@main.group(invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
-@click.option("--help-recursive", is_flag=True, help="Show help for all commands.")
-@click.pass_context
-def mcp(ctx: click.Context, help_recursive: bool):
-    """MCP (Model Context Protocol) server commands."""
-    if help_recursive:
-        click.echo(mcp.get_help(ctx))
-        for name, cmd in sorted(mcp.commands.items()):
-            _print_command_help(cmd, f"scitex-dataset mcp {name}", ctx)
-        ctx.exit(0)
-
-    if ctx.invoked_subcommand is None:
-        click.echo(ctx.get_help())
-
-
-@mcp.command("start")
-def mcp_start() -> None:
-    """Start the scitex-dataset MCP server."""
-    try:
-        from .._mcp.server import mcp as mcp_server
-    except ImportError as e:
-        raise click.ClickException(
-            f"fastmcp not installed. Install: pip install scitex-dataset[mcp]\n{e}"
-        ) from e
-
-    click.echo("Starting scitex-dataset MCP server...")
-    mcp_server.run()
-
-
-def _format_signature(tool) -> str:
-    """Format tool as Python-like function signature."""
-    params = []
-    if hasattr(tool, "parameters") and tool.parameters:
-        schema = tool.parameters
-        props = schema.get("properties", {})
-        required = schema.get("required", [])
-        for name, info in props.items():
-            ptype = info.get("type", "any")
-            default = info.get("default")
-            if name in required:
-                params.append(f"{name}: {ptype}")
-            elif default is not None:
-                params.append(f"{name}: {ptype} = {default!r}")
-            else:
-                params.append(f"{name}: {ptype} = None")
-    return f"{tool.name}({', '.join(params)})"
-
-
-def _estimate_tokens(text: str) -> int:
-    """Estimate token count (rough: ~4 chars per token)."""
-    return len(text) // 4 if text else 0
-
-
-def _get_mcp_summary(mcp_server) -> dict:
-    """Get MCP server summary statistics."""
-    tools = list(mcp_server._tool_manager._tools.values())
-
-    # Calculate total context size
-    instructions = getattr(mcp_server, "instructions", "") or ""
-    total_desc = sum(len(t.description or "") for t in tools)
-    total_params = sum(
-        len(json.dumps(t.parameters))
-        if hasattr(t, "parameters") and t.parameters
-        else 0
-        for t in tools
-    )
-
-    return {
-        "name": getattr(mcp_server, "name", "unknown"),
-        "tool_count": len(tools),
-        "instructions_chars": len(instructions),
-        "instructions_tokens": _estimate_tokens(instructions),
-        "descriptions_chars": total_desc,
-        "descriptions_tokens": _estimate_tokens("x" * total_desc),
-        "schemas_chars": total_params,
-        "schemas_tokens": _estimate_tokens("x" * total_params),
-        "total_context_tokens": (
-            _estimate_tokens(instructions)
-            + _estimate_tokens("x" * total_desc)
-            + _estimate_tokens("x" * total_params)
-        ),
-    }
-
-
-@mcp.command("list-tools")
-@click.option("-v", "--verbose", count=True, help="Verbosity: -v, -vv, -vvv.")
-@click.option("--json", "as_json", is_flag=True, help="Output as JSON.")
-@click.option("--summary", "show_summary", is_flag=True, help="Show context summary.")
-def mcp_list_tools(verbose: int, as_json: bool, show_summary: bool) -> None:
-    """List available MCP tools.
-
-    Verbosity: (none) names, -v signatures, -vv +description, -vvv full.
-    """
-    try:
-        from .._mcp.server import mcp as mcp_server
-    except ImportError as e:
-        raise click.ClickException(
-            f"fastmcp not installed. Install: pip install scitex-dataset[mcp]\n{e}"
-        ) from e
-
-    tools = list(mcp_server._tool_manager._tools.values())
-    summary = _get_mcp_summary(mcp_server)
-
-    if as_json:
-        tool_data = []
-        for tool in tools:
-            schema = tool.parameters if hasattr(tool, "parameters") else {}
-            tool_data.append(
-                {
-                    "name": tool.name,
-                    "signature": _format_signature(tool),
-                    "description": tool.description,
-                    "parameters": schema,
-                }
-            )
-        output = {"summary": summary, "tools": tool_data}
-        click.echo(json.dumps(output, indent=2))
-        return
-
-    # Header with summary
-    click.echo(f"MCP Server: {summary['name']}")
-    click.echo(f"Tools: {summary['tool_count']}")
-    if show_summary:
-        click.echo(f"Context: ~{summary['total_context_tokens']:,} tokens")
-        click.echo(f"  Instructions: ~{summary['instructions_tokens']:,} tokens")
-        click.echo(f"  Descriptions: ~{summary['descriptions_tokens']:,} tokens")
-        click.echo(f"  Schemas: ~{summary['schemas_tokens']:,} tokens")
-    click.echo()
-
-    for tool in tools:
-        if verbose == 0:
-            # Names only
-            click.echo(f"  {tool.name}")
-        elif verbose == 1:
-            # Full signature
-            click.echo(f"  {_format_signature(tool)}")
-        elif verbose == 2:
-            # Signature + one-line description
-            click.echo(f"  {_format_signature(tool)}")
-            if tool.description:
-                desc = tool.description.split("\n")[0].strip()
-                click.echo(f"    {desc}")
-            click.echo()
-        else:
-            # Signature + full description
-            click.echo(f"  {_format_signature(tool)}")
-            if tool.description:
-                for line in tool.description.strip().split("\n"):
-                    click.echo(f"    {line}")
-            click.echo()
-
-
-@mcp.command("doctor")
-def mcp_doctor() -> None:
-    """Check MCP server dependencies."""
-    click.echo("Checking MCP dependencies...")
-
-    try:
-        import fastmcp
-
-        click.echo(f"  OK fastmcp {fastmcp.__version__}")
-    except ImportError:
-        click.echo("  NG fastmcp not installed")
-        click.echo("     Install: pip install scitex-dataset[mcp]")
-        return
-
-    try:
-        from .._mcp.server import mcp as mcp_server
-
-        click.echo(f"  OK MCP server ({len(mcp_server._tool_manager._tools)} tools)")
-    except Exception as exc:
-        click.echo(f"  NG MCP server error: {exc}")
-        return
-
-    click.echo("\nMCP server ready. Run: scitex-dataset mcp run")
-
-
-@mcp.command("install")
-@click.option("--claude-code", is_flag=True, help="Show Claude Code config.")
-def mcp_install(claude_code: bool) -> None:
-    """Show MCP installation instructions."""
-    if claude_code:
-        click.echo("Add to Claude Code MCP config:")
-        click.echo()
-        click.echo('  "scitex-dataset": {')
-        click.echo('    "command": "scitex-dataset",')
-        click.echo('    "args": ["mcp", "start"]')
-        click.echo("  }")
-    else:
-        click.echo("scitex-dataset MCP Server Installation")
-        click.echo("=" * 40)
-        click.echo()
-        click.echo("1. Install: pip install scitex-dataset[mcp]")
-        click.echo("2. Config:  scitex-dataset mcp install --claude-code")
-        click.echo("3. Test:    scitex-dataset mcp doctor")
-
-
 # Shell completion
 @main.command()
 @click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
@@ -487,13 +334,14 @@ def completion(shell: str) -> None:
       eval "$(scitex-dataset completion bash)"   # Bash
       eval "$(scitex-dataset completion zsh)"    # Zsh
     """
+    import os
     import subprocess
     import sys
 
     env = {"_SCITEX_DATASET_COMPLETE": f"{shell}_source"}
     result = subprocess.run(
         [sys.executable, "-m", "scitex_dataset._cli"],
-        env={**dict(__import__("os").environ), **env},
+        env={**dict(os.environ), **env},
         capture_output=True,
         text=True,
     )
