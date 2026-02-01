@@ -170,7 +170,7 @@ def build(
         Count of datasets indexed per source.
     """
     if sources is None:
-        sources = ["openneuro", "dandi", "physionet"]
+        sources = ["openneuro", "dandi", "physionet", "zenodo"]
 
     conn = _get_connection(db_path)
     counts = {}
@@ -186,6 +186,8 @@ def build(
                 from .neuroscience.dandi import fetch_all_datasets, format_dataset
             elif source == "physionet":
                 from .neuroscience.physionet import fetch_all_datasets, format_dataset
+            elif source == "zenodo":
+                from .general.zenodo import fetch_all_datasets, format_dataset
             else:
                 if logger:
                     logger.warning(f"Unknown source: {source}")

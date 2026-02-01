@@ -9,35 +9,18 @@ MCP server for scitex-dataset - unified scientific dataset discovery.
 Usage:
     fastmcp run scitex_dataset._mcp.server:mcp
     # or
-    scitex-dataset mcp run
+    scitex-dataset mcp start
 """
 
 from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
 
-MCP_INSTRUCTIONS = """
-SciTeX Dataset: Unified interface for scientific dataset discovery.
-
-Available sources:
-- OpenNeuro: BIDS neuroimaging (MRI, EEG, MEG, iEEG, PET)
-- DANDI: NWB neurophysiology data
-- PhysioNet: EEG, ECG, physiological signals
-
-Workflow:
-1. Use fetch tools to get dataset metadata from repositories
-2. Use search tool to filter datasets by criteria
-3. Results include URLs for direct access to data
-
-Example:
-    # Find EEG datasets with 20+ subjects
-    datasets = openneuro_fetch(max_datasets=100)
-    results = search(datasets, modality="eeg", min_subjects=20)
-"""
+from .._branding import get_mcp_instructions, get_mcp_server_name
 
 mcp = FastMCP(
-    name="scitex-dataset",
-    instructions=MCP_INSTRUCTIONS,
+    name=get_mcp_server_name(),
+    instructions=get_mcp_instructions(),
 )
 
 
@@ -119,6 +102,38 @@ def dataset_physionet_fetch(max_datasets: int = 100) -> List[Dict[str, Any]]:
 
 
 @mcp.tool
+def dataset_zenodo_fetch(
+    query: str = "",
+    max_datasets: int = 100,
+) -> List[Dict[str, Any]]:
+    """Fetch dataset metadata from Zenodo.
+
+    Zenodo is CERN's general-purpose open repository for research data,
+    software, publications, and other research artifacts.
+
+    Parameters
+    ----------
+    query : str
+        Search query string (optional).
+    max_datasets : int
+        Maximum datasets to fetch (0 for all).
+
+    Returns
+    -------
+    list
+        List of formatted dataset dictionaries with fields:
+        id, name, doi, authors, keywords, size_gb, downloads, etc.
+    """
+    from ..general.zenodo import fetch_all_datasets, format_dataset
+
+    raw = fetch_all_datasets(
+        query=query,
+        max_datasets=max_datasets if max_datasets > 0 else None,
+    )
+    return [format_dataset(ds) for ds in raw]
+
+
+@mcp.tool
 def dataset_search(
     datasets: List[Dict[str, Any]],
     modality: Optional[str] = None,
@@ -195,21 +210,31 @@ def dataset_list_sources() -> Dict[str, Any]:
                 "description": "BIDS neuroimaging (MRI, EEG, MEG, iEEG, PET)",
                 "url": "https://openneuro.org",
                 "format": "BIDS",
+                "domain": "neuroscience",
             },
             "dandi": {
                 "name": "DANDI Archive",
                 "description": "NWB neurophysiology data",
                 "url": "https://dandiarchive.org",
                 "format": "NWB",
+                "domain": "neuroscience",
             },
             "physionet": {
                 "name": "PhysioNet",
                 "description": "EEG, ECG, physiological signals",
                 "url": "https://physionet.org",
                 "format": "Various",
+                "domain": "neuroscience",
+            },
+            "zenodo": {
+                "name": "Zenodo",
+                "description": "General scientific data repository (CERN)",
+                "url": "https://zenodo.org",
+                "format": "Various",
+                "domain": "general",
             },
         },
-        "count": 3,
+        "count": 4,
     }
 
 
@@ -226,7 +251,7 @@ def dataset_db_build(
     Parameters
     ----------
     sources : list, optional
-        Sources to index: ["openneuro", "dandi", "physionet"].
+        Sources to index: ["openneuro", "dandi", "physionet", "zenodo"].
         Default: all sources.
 
     Returns
@@ -269,7 +294,7 @@ def dataset_db_search(
     query : str, optional
         Full-text search query (searches name, readme, tasks).
     source : str, optional
-        Filter by source: "openneuro", "dandi", "physionet".
+        Filter by source: "openneuro", "dandi", "physionet", "zenodo".
     modality : str, optional
         Filter by modality (e.g., "mri", "eeg").
     min_subjects : int, optional
