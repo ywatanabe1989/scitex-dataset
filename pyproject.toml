@@ -65,7 +65,7 @@ scitex-dataset = "scitex_dataset._cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ywatanabe1989/scitex-dataset"
-Documentation = "https://github.com/ywatanabe1989/scitex-dataset#readme"
+Documentation = "https://scitex-dataset.readthedocs.io"
 Repository = "https://github.com/ywatanabe1989/scitex-dataset.git"
 Issues = "https://github.com/ywatanabe1989/scitex-dataset/issues"
 
