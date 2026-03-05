@@ -24,7 +24,7 @@ def register_all_tools(mcp) -> None:
         max_datasets: int = 100,
         batch_size: int = 100,
     ) -> List[Dict[str, Any]]:
-        """[dataset] Fetch metadata from OpenNeuro (BIDS neuroimaging)."""
+        """Fetch metadata from OpenNeuro (BIDS neuroimaging)."""
         from ..neuroscience.openneuro import fetch_all_datasets, format_dataset
 
         raw = fetch_all_datasets(
@@ -36,7 +36,7 @@ def register_all_tools(mcp) -> None:
     # DANDI
     @mcp.tool()
     def dataset_dandi_fetch(max_datasets: int = 100) -> List[Dict[str, Any]]:
-        """[dataset] Fetch metadata from DANDI Archive (NWB neurophysiology)."""
+        """Fetch metadata from DANDI Archive (NWB neurophysiology)."""
         from ..neuroscience.dandi import fetch_all_datasets, format_dataset
 
         raw = fetch_all_datasets(
@@ -47,7 +47,7 @@ def register_all_tools(mcp) -> None:
     # PhysioNet
     @mcp.tool()
     def dataset_physionet_fetch(max_datasets: int = 100) -> List[Dict[str, Any]]:
-        """[dataset] Fetch metadata from PhysioNet (EEG/ECG/physiology)."""
+        """Fetch metadata from PhysioNet (EEG/ECG/physiology)."""
         from ..neuroscience.physionet import fetch_all_datasets, format_dataset
 
         raw = fetch_all_datasets(
@@ -69,7 +69,7 @@ def register_all_tools(mcp) -> None:
         sort_by: str = "downloads",
         limit: int = 20,
     ) -> List[Dict[str, Any]]:
-        """[dataset] Search and filter datasets by criteria."""
+        """Search and filter datasets by criteria."""
         from ..search import search_datasets, sort_datasets
 
         results = search_datasets(
@@ -88,7 +88,7 @@ def register_all_tools(mcp) -> None:
     # List sources
     @mcp.tool()
     def dataset_list_sources() -> Dict[str, Any]:
-        """[dataset] List available dataset sources."""
+        """List available dataset sources."""
         return {
             "sources": {
                 "openneuro": {
@@ -118,7 +118,7 @@ def register_all_tools(mcp) -> None:
     def dataset_db_build(
         sources: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
-        """[dataset] Build/rebuild the local dataset database."""
+        """Build/rebuild the local dataset database."""
         from .. import database
 
         counts = database.build(sources=sources)
@@ -144,7 +144,7 @@ def register_all_tools(mcp) -> None:
         limit: int = 20,
         order_by: str = "downloads",
     ) -> List[Dict[str, Any]]:
-        """[dataset] Search local database with full-text search."""
+        """Search local database with full-text search."""
         from .. import database
 
         return database.search(
@@ -161,7 +161,7 @@ def register_all_tools(mcp) -> None:
 
     @mcp.tool()
     def dataset_db_stats() -> Dict[str, Any]:
-        """[dataset] Get local database statistics."""
+        """Get local database statistics."""
         from .. import database
 
         return database.get_stats()
