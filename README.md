@@ -107,7 +107,7 @@ if __name__ == "__main__":
 <p align="center">
   <a href="https://scitex.ai" target="_blank"><img src="https://raw.githubusercontent.com/ywatanabe1989/scitex-python/main/docs/assets/images/scitex-icon-navy-inverted.png" alt="SciTeX" width="40"/></a>
   <br>
-  AGPL-3.0 · ywatanabe@scitex.ai
+  AGPL-3.0
 </p>
 
 <!-- EOF -->
