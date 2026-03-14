@@ -63,7 +63,9 @@ def test_get_mcp_instructions():
     assert "OpenNeuro" in instructions
     assert "DANDI" in instructions
     assert "PhysioNet" in instructions
+    assert "Zenodo" in instructions
     assert "dataset_openneuro_fetch" in instructions
+    assert "dataset_zenodo_fetch" in instructions
     assert "dataset_db_build" in instructions
 
 

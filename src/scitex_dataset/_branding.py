@@ -18,7 +18,7 @@ from typing import Optional
 # Package identification
 PACKAGE_NAME = "scitex-dataset"
 PACKAGE_DISPLAY_NAME = "SciTeX Dataset"
-PACKAGE_DESCRIPTION = "Unified access to neuroscience datasets for AI-powered research"
+PACKAGE_DESCRIPTION = "Unified access to scientific datasets for AI-powered research"
 
 # Environment variable prefix
 ENV_PREFIX = "SCITEX_DATASET"
@@ -58,20 +58,22 @@ def get_mcp_server_name() -> str:
 
 def get_mcp_instructions() -> str:
     """Get MCP server instructions for LLM context."""
-    return """SciTeX Dataset: Unified access to neuroscience datasets.
+    return """SciTeX Dataset: Unified access to scientific datasets.
 
 This MCP server provides tools to discover and query datasets from major
-neuroscience repositories:
+scientific repositories:
 
 **Repositories:**
 - OpenNeuro: BIDS-formatted neuroimaging (MRI, EEG, MEG, iEEG, PET)
 - DANDI Archive: NWB neurophysiology data
 - PhysioNet: EEG, ECG, and physiological signals
+- Zenodo: General scientific data repository (CERN)
 
 **Tools:**
 - dataset_openneuro_fetch: Fetch OpenNeuro datasets
 - dataset_dandi_fetch: Fetch DANDI dandisets
 - dataset_physionet_fetch: Fetch PhysioNet databases
+- dataset_zenodo_fetch: Fetch Zenodo datasets
 - dataset_search: Filter and search fetched datasets
 - dataset_list_sources: List available data sources
 - dataset_db_build: Build local search database
