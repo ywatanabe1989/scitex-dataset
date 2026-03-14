@@ -10,6 +10,22 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/03_cli_usage_out"
 
+usage() {
+    echo "Usage: $(basename "$0") [-h]"
+    echo ""
+    echo "Demonstrate scitex-dataset CLI commands."
+    echo ""
+    echo "Options:"
+    echo "  -h, --help    Show this help message and exit"
+}
+
+case "${1:-}" in
+-h | --help)
+    usage
+    exit 0
+    ;;
+esac
+
 mkdir -p "$OUTPUT_DIR"
 
 echo "=== CLI Help ==="

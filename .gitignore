@@ -681,6 +681,10 @@ flycheck_*.el
 !.gitkeep
 !**/.gitkeep
 
+# Logo/icon files for README
+!docs/scitex-logo-blue-cropped.png
+!docs/scitex-icon-navy-inverted.png
+
 ### Source: /home/ywatanabe/.git-templates/.gitignore-templates/Custom/SLURM.gitignore ###
 slurm_logs
 /.coverage

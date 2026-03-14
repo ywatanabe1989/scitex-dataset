@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import Optional
 
 import httpx as _httpx
+from scitex_dev.decorators import supports_return_as
 
 PHYSIONET_API = "https://physionet.org"
 
@@ -33,6 +34,7 @@ __all__ = [
 ]
 
 
+@supports_return_as
 def fetch_datasets(page: int = 1) -> dict:
     """Fetch a single page of databases from PhysioNet."""
     response = _httpx.get(
@@ -44,6 +46,7 @@ def fetch_datasets(page: int = 1) -> dict:
     return response.json()
 
 
+@supports_return_as
 def fetch_all_datasets(
     max_datasets: Optional[int] = None,
     logger=None,
@@ -92,6 +95,7 @@ def fetch_all_datasets(
     return all_datasets
 
 
+@supports_return_as
 def format_dataset(database: dict) -> dict:
     """Extract and format PhysioNet database information."""
     # Handle different response formats

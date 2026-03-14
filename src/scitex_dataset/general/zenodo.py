@@ -17,10 +17,12 @@ API Documentation: https://developers.zenodo.org/
 from typing import Optional
 
 import httpx
+from scitex_dev.decorators import supports_return_as
 
 ZENODO_API = "https://zenodo.org/api"
 
 
+@supports_return_as
 def fetch_datasets(
     query: str = "",
     page: int = 1,
@@ -76,6 +78,7 @@ def fetch_datasets(
     return response.json()
 
 
+@supports_return_as
 def fetch_all_datasets(
     query: str = "",
     max_datasets: Optional[int] = None,
@@ -142,6 +145,7 @@ def fetch_all_datasets(
     return all_datasets
 
 
+@supports_return_as
 def format_dataset(record: dict) -> dict:
     """
     Format a Zenodo record into a standardized dataset dictionary.

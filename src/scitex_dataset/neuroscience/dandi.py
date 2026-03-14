@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import Optional
 
 import httpx as _httpx
+from scitex_dev.decorators import supports_return_as
 
 DANDI_API = "https://api.dandiarchive.org/api"
 
@@ -33,6 +34,7 @@ __all__ = [
 ]
 
 
+@supports_return_as
 def fetch_datasets(
     page: int = 1,
     page_size: int = 100,
@@ -54,6 +56,7 @@ def fetch_datasets(
     return response.json()
 
 
+@supports_return_as
 def fetch_all_datasets(
     max_datasets: Optional[int] = None,
     page_size: int = 100,
@@ -96,6 +99,7 @@ def fetch_all_datasets(
     return all_datasets
 
 
+@supports_return_as
 def format_dataset(dandiset: dict) -> dict:
     """Extract and format dandiset information."""
     draft = dandiset.get("draft_version") or {}

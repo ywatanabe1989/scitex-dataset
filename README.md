@@ -1,30 +1,54 @@
-# SciTeX Dataset
+# SciTeX Dataset (<code>scitex-dataset</code>)
 
-**Unified access to neuroscience datasets for AI-powered research**
+<p align="center">
+  <a href="https://scitex.ai">
+    <img src="docs/scitex-logo-blue-cropped.png" alt="SciTeX" width="400">
+  </a>
+</p>
 
-[![PyPI version](https://badge.fury.io/py/scitex-dataset.svg)](https://badge.fury.io/py/scitex-dataset)
-[![Tests](https://github.com/ywatanabe1989/scitex-dataset/actions/workflows/test.yml/badge.svg)](https://github.com/ywatanabe1989/scitex-dataset/actions/workflows/test.yml)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+<p align="center"><b>Unified access to neuroscience and scientific datasets</b></p>
 
-SciTeX Dataset provides a unified interface to discover and fetch metadata from major neuroscience data repositories.
+<p align="center">
+  <a href="https://badge.fury.io/py/scitex-dataset"><img src="https://badge.fury.io/py/scitex-dataset.svg" alt="PyPI version"></a>
+  <a href="https://scitex-dataset.readthedocs.io/"><img src="https://readthedocs.org/projects/scitex-dataset/badge/?version=latest" alt="Documentation"></a>
+  <a href="https://github.com/ywatanabe1989/scitex-dataset/actions/workflows/test.yml"><img src="https://github.com/ywatanabe1989/scitex-dataset/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0"></a>
+</p>
 
-Part of [**SciTeX**](https://scitex.ai).
+<p align="center">
+  <a href="https://scitex-dataset.readthedocs.io/">Full Documentation</a> · <code>pip install scitex-dataset</code>
+</p>
 
-## Data Sources
+---
+
+## Problem
+
+Neuroscience datasets are scattered across multiple repositories -- OpenNeuro, DANDI Archive, PhysioNet, Zenodo -- each with its own API, data format, and query interface. Researchers waste time navigating incompatible APIs to discover relevant data. AI agents lack a unified way to search and evaluate datasets programmatically.
+
+## Solution
+
+SciTeX Dataset provides a **single Python API, CLI, and MCP (Model Context Protocol) server** to discover and query metadata from major scientific data repositories. It focuses on fast metadata retrieval without downloading full datasets.
 
 | Repository | Description | Data Types |
 |------------|-------------|------------|
 | **OpenNeuro** | Open platform for sharing neuroimaging data | MRI, EEG, MEG, iEEG, PET |
 | **DANDI** | BRAIN Initiative data archive | Electrophysiology, Ophys |
 | **PhysioNet** | Physiological signal databases | ECG, EEG, clinical data |
+| **Zenodo** | General scientific data repository (CERN) | Any research data |
 
-## Quick Start
+<p align="center"><sub><b>Table 1.</b> Supported data repositories. Each source is queried via its public API; no authentication required for metadata access.</sub></p>
+
+## Installation
+
+Requires Python >= 3.10.
 
 ```bash
 pip install scitex-dataset
 ```
 
-### Python API
+> **MCP support**: `pip install scitex-dataset[mcp]`
+
+## Quick Start
 
 ```python
 from scitex_dataset import fetch_all_datasets, format_dataset
@@ -38,76 +62,123 @@ for ds in datasets:
     print(f"{formatted['id']}: {formatted['name']} ({formatted['n_subjects']} subjects)")
 ```
 
-### CLI
+## Three Interfaces
+
+<details>
+<summary><strong>Python API</strong></summary>
+
+<br>
+
+```python
+from scitex_dataset import fetch_all_datasets, format_dataset, search_datasets, sort_datasets
+from scitex_dataset import neuroscience, database
+
+# Fetch from specific sources
+datasets = fetch_all_datasets(max_datasets=100)                    # OpenNeuro
+dandi_ds = neuroscience.dandi.fetch_all_datasets(max_datasets=50)  # DANDI
+phys_ds = neuroscience.physionet.fetch_all_datasets()              # PhysioNet
+
+# Search and filter
+eeg_datasets = search_datasets(datasets, modality="eeg", min_subjects=20)
+popular = sort_datasets(datasets, by="downloads", descending=True)
+
+# Local database for fast full-text search
+database.build()                                        # index all sources
+results = database.search("alzheimer EEG", min_subjects=20)
+```
+
+> **[Full API reference](https://scitex-dataset.readthedocs.io/)**
+
+</details>
+
+<details>
+<summary><strong>CLI Commands</strong></summary>
+
+<br>
 
 ```bash
-# Fetch OpenNeuro datasets
+scitex-dataset --help-recursive             # Show all commands
+
+# Fetch from repositories
 scitex-dataset openneuro -n 100 -o datasets.json -v
+scitex-dataset dandi -n 50 -o dandi.json -v
+scitex-dataset physionet -n 50 -v
+scitex-dataset zenodo -q "neuroscience" -n 20
 
-# Search across repositories
-scitex-dataset search "epilepsy EEG" --source openneuro
+# Local database
+scitex-dataset db build                     # index all sources
+scitex-dataset db search "epilepsy EEG"     # full-text search
+scitex-dataset db stats                     # show statistics
 
-# Database operations
-scitex-dataset db init
-scitex-dataset db sync openneuro
-scitex-dataset db query "modality:eeg"
+# Introspection
+scitex-dataset list-python-apis -v          # list Python API tree
+scitex-dataset mcp list-tools -v            # list MCP tools
 ```
 
-### MCP Server
+> **[Full CLI reference](https://scitex-dataset.readthedocs.io/)**
 
-SciTeX Dataset includes an **MCP (Model Context Protocol) server**, enabling AI agents like Claude to discover and query neuroscience datasets.
+</details>
 
-```bash
-# Add to Claude Code MCP config
-scitex-dataset mcp install
+<details>
+<summary><strong>MCP Server -- for AI Agents</strong></summary>
 
-# Or run directly
-scitex-dataset mcp start
-```
+<br>
 
-**Available MCP Tools:**
+AI agents can discover and query neuroscience datasets autonomously.
 
 | Tool | Description |
 |------|-------------|
 | `dataset_openneuro_fetch` | Fetch datasets from OpenNeuro |
-| `dataset_openneuro_search` | Search OpenNeuro by query |
 | `dataset_dandi_fetch` | Fetch datasets from DANDI Archive |
-| `dataset_dandi_search` | Search DANDI by query |
 | `dataset_physionet_fetch` | Fetch datasets from PhysioNet |
-| `dataset_physionet_search` | Search PhysioNet by query |
-| `dataset_search` | Unified search across all repositories |
-| `dataset_stats` | Get repository statistics |
+| `dataset_zenodo_fetch` | Fetch datasets from Zenodo |
+| `dataset_search` | Filter datasets by modality, subjects, etc. |
+| `dataset_list_sources` | List available data repositories |
+| `dataset_db_build` | Build local search database |
+| `dataset_db_search` | Full-text search across all sources |
+| `dataset_db_stats` | Database statistics |
 
-### With SciTeX Session
+<sub><b>Table 2.</b> Nine MCP tools available for AI-assisted dataset discovery. All tools accept JSON parameters and return JSON results.</sub>
 
-```python
-import scitex as stx
-from scitex_dataset import fetch_all_datasets, format_dataset
-
-@stx.session
-def main(logger=stx.INJECTED):
-    datasets = fetch_all_datasets(max_datasets=100, logger=logger)
-    formatted = [format_dataset(ds) for ds in datasets]
-    stx.io.save(formatted, "openneuro_datasets.json")
-    return 0
-
-if __name__ == "__main__":
-    main()
+```bash
+scitex-dataset mcp start
 ```
 
-## Why SciTeX Dataset?
+> **[Full MCP specification](https://scitex-dataset.readthedocs.io/)**
 
-- **Unified Interface**: One API for OpenNeuro, DANDI, PhysioNet, and more
-- **AI-Ready**: MCP server enables LLMs to discover relevant datasets
-- **Metadata Focus**: Fast metadata queries without downloading full datasets
-- **SciTeX Integration**: Works seamlessly with `@stx.session` for reproducible research
+</details>
+
+## Part of SciTeX
+
+SciTeX Dataset is part of [**SciTeX**](https://scitex.ai). When used inside the SciTeX framework, dataset discovery integrates with reproducible research sessions:
+
+```python
+import scitex
+from scitex_dataset import fetch_all_datasets, format_dataset
+
+@scitex.session
+def main(logger=scitex.INJECTED):
+    datasets = fetch_all_datasets(max_datasets=100, logger=logger)
+    formatted = [format_dataset(ds) for ds in datasets]
+    scitex.io.save(formatted, "openneuro_datasets.json")
+    return 0
+```
+
+The SciTeX ecosystem follows the Four Freedoms for Research, inspired by [the Free Software Definition](https://www.gnu.org/philosophy/free-sw.en.html):
+
+>Four Freedoms for Research
+>
+>0. The freedom to **run** your research anywhere -- your machine, your terms.
+>1. The freedom to **study** how every step works -- from raw data to final manuscript.
+>2. The freedom to **redistribute** your workflows, not just your papers.
+>3. The freedom to **modify** any module and share improvements with the community.
+>
+>AGPL-3.0 -- because we believe research infrastructure deserves the same freedoms as the software it runs on.
 
 ---
 
 <p align="center">
-  <a href="https://scitex.ai" target="_blank"><img src="https://raw.githubusercontent.com/ywatanabe1989/scitex-python/main/docs/assets/images/scitex-icon-navy-inverted.png" alt="SciTeX" width="40"/></a>
-  <br>
-  AGPL-3.0
+  <a href="https://scitex.ai" target="_blank"><img src="docs/scitex-icon-navy-inverted.png" alt="SciTeX" width="40"/></a>
 </p>
 
 <!-- EOF -->
