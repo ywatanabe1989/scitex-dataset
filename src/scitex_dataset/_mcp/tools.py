@@ -96,21 +96,31 @@ def register_all_tools(mcp) -> None:
                     "description": "BIDS neuroimaging (MRI, EEG, MEG, iEEG, PET)",
                     "url": "https://openneuro.org",
                     "format": "BIDS",
+                    "domain": "neuroscience",
                 },
                 "dandi": {
                     "name": "DANDI Archive",
                     "description": "NWB neurophysiology data",
                     "url": "https://dandiarchive.org",
                     "format": "NWB",
+                    "domain": "neuroscience",
                 },
                 "physionet": {
                     "name": "PhysioNet",
                     "description": "EEG, ECG, physiological signals",
                     "url": "https://physionet.org",
                     "format": "Various",
+                    "domain": "neuroscience",
+                },
+                "zenodo": {
+                    "name": "Zenodo",
+                    "description": "General scientific data repository (CERN)",
+                    "url": "https://zenodo.org",
+                    "format": "Various",
+                    "domain": "general",
                 },
             },
-            "count": 3,
+            "count": 4,
         }
 
     # Database tools

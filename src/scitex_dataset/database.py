@@ -20,6 +20,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from scitex_dev.decorators import supports_return_as
+
 # Default database location
 DEFAULT_DB_PATH = Path.home() / ".cache" / "scitex-dataset" / "datasets.db"
 
@@ -147,6 +149,7 @@ def _insert_dataset(
     )
 
 
+@supports_return_as
 def build(
     sources: Optional[List[str]] = None,
     db_path: Optional[Path] = None,
@@ -250,6 +253,7 @@ def update(
     return result.get(source, 0)
 
 
+@supports_return_as
 def search(
     query: Optional[str] = None,
     source: Optional[str] = None,
@@ -353,6 +357,7 @@ def search(
     return results
 
 
+@supports_return_as
 def get_stats(db_path: Optional[Path] = None) -> Dict[str, Any]:
     """Get database statistics.
 

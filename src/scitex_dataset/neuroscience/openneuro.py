@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Optional
 
 import httpx as _httpx  # noqa: N812
+from scitex_dev.decorators import supports_return_as
 
 OPENNEURO_API = "https://openneuro.org/crn/graphql"
 
@@ -62,6 +63,7 @@ query {{
 """
 
 
+@supports_return_as
 def fetch_datasets(first: int = 10, after: Optional[str] = None) -> dict:
     """Fetch a single page of datasets from OpenNeuro."""
     response = _httpx.post(
@@ -74,6 +76,7 @@ def fetch_datasets(first: int = 10, after: Optional[str] = None) -> dict:
     return response.json()
 
 
+@supports_return_as
 def fetch_all_datasets(
     batch_size: int = 100,
     max_datasets: Optional[int] = None,
@@ -121,6 +124,7 @@ def fetch_all_datasets(
     return all_datasets
 
 
+@supports_return_as
 def format_dataset(node: dict) -> dict:
     """Extract and format dataset information from raw GraphQL response."""
     draft = node.get("draft") or {}

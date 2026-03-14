@@ -19,7 +19,10 @@ from __future__ import annotations
 
 from typing import Optional
 
+from scitex_dev.decorators import supports_return_as
 
+
+@supports_return_as
 def search_datasets(
     datasets: list[dict],
     modality: Optional[str] = None,
@@ -95,6 +98,7 @@ def search_datasets(
     return results
 
 
+@supports_return_as
 def sort_datasets(
     datasets: list[dict],
     by: str = "downloads",
