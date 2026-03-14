@@ -106,3 +106,6 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 show_missing = true
+
+[tool.scitex-linter]
+library_dirs = ["src", "tests", "examples"]

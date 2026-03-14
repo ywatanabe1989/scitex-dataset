@@ -28,7 +28,7 @@ cd "$SCRIPT_DIR"
 echo "Running all examples..."
 echo
 
-for script in 01_*.py 02_*.py 03_*.sh; do
+for script in 01_*.py 02_*.py 03_*.sh 04_*.py; do
     if [[ -f "$script" ]]; then
         echo "=== Running $script ==="
         if [[ "$script" == *.py ]]; then
