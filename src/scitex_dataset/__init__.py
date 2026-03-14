@@ -23,7 +23,7 @@ Usage:
     >>> results = db.search("alzheimer EEG", min_subjects=20)
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 # Domain submodules
 from . import database, general, neuroscience
