@@ -59,6 +59,13 @@ def main(ctx: click.Context, version: bool, help_recursive: bool) -> None:
 main.add_command(mcp)
 main.add_command(list_python_apis)
 
+try:
+    from scitex_dev.cli import docs_click_group
+
+    main.add_command(docs_click_group(package="scitex-dataset"))
+except ImportError:
+    pass
+
 
 # OpenNeuro command
 @main.command()
