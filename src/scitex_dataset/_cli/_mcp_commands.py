@@ -126,7 +126,9 @@ def _estimate_tokens(text: str) -> int:
 
 def _get_mcp_summary(mcp_server) -> dict:
     """Get MCP server summary statistics."""
-    tools = list(mcp_server._tool_manager._tools.values())
+    from scitex_dev import get_tools_sync
+
+    tools = list(get_tools_sync(mcp_server).values())
 
     # Calculate total context size
     instructions = getattr(mcp_server, "instructions", "") or ""
@@ -179,7 +181,10 @@ def mcp_list_tools(
         ) from e
 
     # Get all tools
-    tools = list(mcp_server._tool_manager._tools.keys())
+    from scitex_dev import get_tools_sync
+
+    _tools_map = get_tools_sync(mcp_server)
+    tools = list(_tools_map.keys())
 
     # Group by module prefix
     modules = {}
@@ -209,7 +214,7 @@ def mcp_list_tools(
         for mod, tool_list in modules.items():
             output["modules"][mod] = {"count": len(tool_list), "tools": []}
             for tool_name in tool_list:
-                tool_obj = mcp_server._tool_manager._tools.get(tool_name)
+                tool_obj = _tools_map.get(tool_name)
                 schema = tool_obj.parameters if hasattr(tool_obj, "parameters") else {}
                 output["modules"][mod]["tools"].append(
                     {
@@ -238,7 +243,7 @@ def mcp_list_tools(
     for mod, tool_list in sorted(modules.items()):
         click.secho(f"{mod}: {len(tool_list)} tools", fg="green", bold=True)
         for tool_name in tool_list:
-            tool_obj = mcp_server._tool_manager._tools.get(tool_name)
+            tool_obj = _tools_map.get(tool_name)
 
             if verbose == 0:
                 # Names only
@@ -298,7 +303,9 @@ def mcp_doctor() -> None:
         from .._mcp.server import mcp as mcp_server
 
         click.secho("  OK ", fg="green", nl=False)
-        click.echo(f"MCP server ({len(mcp_server._tool_manager._tools)} tools)")
+        from scitex_dev import get_tools_sync
+
+        click.echo(f"MCP server ({len(get_tools_sync(mcp_server))} tools)")
     except Exception as exc:
         click.secho("  NG ", fg="red", nl=False)
         click.echo(f"MCP server error: {exc}")
