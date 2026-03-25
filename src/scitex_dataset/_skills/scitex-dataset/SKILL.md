@@ -1,5 +1,4 @@
 ---
-name: scitex-dataset
 description: Dataset fetcher for neuroscience research — OpenNeuro, DANDI, PhysioNet with local database search and BIDS support.
 allowed-tools: mcp__scitex__dataset_*
 ---
