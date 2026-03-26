@@ -62,7 +62,7 @@ for ds in datasets:
     print(f"{formatted['id']}: {formatted['name']} ({formatted['n_subjects']} subjects)")
 ```
 
-## Three Interfaces
+## Four Interfaces
 
 <details>
 <summary><strong>Python API</strong></summary>
@@ -145,6 +145,28 @@ scitex-dataset mcp start
 ```
 
 > **[Full MCP specification](https://scitex-dataset.readthedocs.io/)**
+
+</details>
+
+<details>
+<summary><strong>Skills — for AI Agent Discovery</strong></summary>
+
+<br>
+
+Skills provide workflow-oriented guides that AI agents query to discover capabilities and usage patterns.
+
+```bash
+scitex-dataset skills list              # List available skill pages
+scitex-dataset skills get SKILL         # Show main skill page
+scitex-dev skills export --package scitex-dataset  # Export to Claude Code
+```
+
+| Skill | Content |
+|-------|---------|
+| `quick-start` | Basic usage |
+| `data-sources` | OpenNeuro, DANDI, PhysioNet |
+| `cli-reference` | CLI commands |
+| `mcp-tools` | MCP tools for AI agents |
 
 </details>
 
