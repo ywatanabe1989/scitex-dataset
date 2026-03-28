@@ -8,22 +8,14 @@ Pharmacology dataset sources.
 
 Platforms:
 - chembl: ChEMBL bioactivity database (drug discovery, assays)
+- moleculenet: MoleculeNet benchmark suite for molecular ML
 """
 
-from . import chembl
-from .chembl import (
-    CHEMBL_API,
-    fetch_all_datasets,
-    fetch_datasets,
-    format_dataset,
-)
+from . import chembl, moleculenet
 
 __all__ = [
     "chembl",
-    "CHEMBL_API",
-    "fetch_datasets",
-    "fetch_all_datasets",
-    "format_dataset",
+    "moleculenet",
 ]
 
 # EOF
