@@ -8,7 +8,10 @@ SciTeX Dataset - Unified interface for scientific dataset discovery.
 
 Domains:
 - neuroscience: OpenNeuro, DANDI, PhysioNet
-- general: Scientific Data, Zenodo (future)
+- general: Scientific Data, Zenodo
+- biology: GEO (Gene Expression Omnibus)
+- pharmacology: ChEMBL
+- medical: ClinicalTrials.gov
 
 Usage:
     >>> from scitex_dataset import neuroscience
@@ -26,7 +29,7 @@ Usage:
 __version__ = "0.2.1"
 
 # Domain submodules
-from . import database, general, neuroscience
+from . import biology, database, general, medical, neuroscience, pharmacology
 
 # Convenience exports from neuroscience.openneuro (primary source)
 from .neuroscience.openneuro import (
@@ -42,6 +45,9 @@ __all__ = [
     # Domains
     "neuroscience",
     "general",
+    "biology",
+    "pharmacology",
+    "medical",
     # Database
     "database",
     # Convenience (OpenNeuro)

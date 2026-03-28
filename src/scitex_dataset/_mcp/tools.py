@@ -55,6 +55,39 @@ def register_all_tools(mcp) -> None:
         )
         return [format_dataset(ds) for ds in raw]
 
+    # GEO
+    @mcp.tool()
+    def dataset_geo_fetch(max_datasets: int = 100) -> List[Dict[str, Any]]:
+        """Fetch metadata from GEO (Gene Expression Omnibus)."""
+        from ..biology.geo import fetch_all_datasets, format_dataset
+
+        raw = fetch_all_datasets(
+            max_datasets=max_datasets if max_datasets > 0 else None
+        )
+        return [format_dataset(ds) for ds in raw]
+
+    # ChEMBL
+    @mcp.tool()
+    def dataset_chembl_fetch(max_datasets: int = 100) -> List[Dict[str, Any]]:
+        """Fetch metadata from ChEMBL (bioactivity assays)."""
+        from ..pharmacology.chembl import fetch_all_datasets, format_dataset
+
+        raw = fetch_all_datasets(
+            max_datasets=max_datasets if max_datasets > 0 else None
+        )
+        return [format_dataset(ds) for ds in raw]
+
+    # ClinicalTrials
+    @mcp.tool()
+    def dataset_clinicaltrials_fetch(max_datasets: int = 100) -> List[Dict[str, Any]]:
+        """Fetch metadata from ClinicalTrials.gov (clinical studies)."""
+        from ..medical.clinicaltrials import fetch_all_datasets, format_dataset
+
+        raw = fetch_all_datasets(
+            max_datasets=max_datasets if max_datasets > 0 else None
+        )
+        return [format_dataset(ds) for ds in raw]
+
     # Search
     @mcp.tool()
     def dataset_search(
@@ -119,8 +152,29 @@ def register_all_tools(mcp) -> None:
                     "format": "Various",
                     "domain": "general",
                 },
+                "geo": {
+                    "name": "GEO",
+                    "description": "Gene Expression Omnibus (genomics, transcriptomics)",
+                    "url": "https://www.ncbi.nlm.nih.gov/geo/",
+                    "format": "Various",
+                    "domain": "biology",
+                },
+                "chembl": {
+                    "name": "ChEMBL",
+                    "description": "Bioactivity database for drug discovery",
+                    "url": "https://www.ebi.ac.uk/chembl/",
+                    "format": "JSON",
+                    "domain": "pharmacology",
+                },
+                "clinicaltrials": {
+                    "name": "ClinicalTrials.gov",
+                    "description": "Clinical study records (interventional trials)",
+                    "url": "https://clinicaltrials.gov",
+                    "format": "JSON",
+                    "domain": "medical",
+                },
             },
-            "count": 4,
+            "count": 7,
         }
 
     # Database tools

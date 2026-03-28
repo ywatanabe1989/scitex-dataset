@@ -201,6 +201,102 @@ def zenodo(query: str, max_datasets: int, output: str, verbose: bool) -> None:
         click.echo(f"Fetched {len(formatted)} datasets")
 
 
+# GEO command
+@main.command()
+@click.option("-n", "--max-datasets", default=0, help="Max datasets (0=all).")
+@click.option("-o", "--output", type=click.Path(), help="Output JSON file.")
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output.")
+def geo(max_datasets: int, output: str, verbose: bool) -> None:
+    """Fetch datasets from GEO (Gene Expression Omnibus)."""
+    from ..biology.geo import fetch_all_datasets, format_dataset
+
+    if verbose:
+        click.echo("Fetching datasets from GEO...")
+
+    datasets = fetch_all_datasets(
+        max_datasets=max_datasets if max_datasets > 0 else None,
+    )
+
+    if not datasets:
+        click.echo("No datasets fetched", err=True)
+        raise SystemExit(1)
+
+    formatted = [format_dataset(ds) for ds in datasets]
+
+    if output:
+        Path(output).write_text(json.dumps(formatted, indent=2))
+        click.echo(f"Saved {len(formatted)} datasets to {output}")
+    else:
+        if verbose:
+            for ds in formatted[:10]:
+                click.echo(f"  {ds['id']}: {ds['name'][:50]}")
+        click.echo(f"Fetched {len(formatted)} datasets")
+
+
+# ChEMBL command
+@main.command()
+@click.option("-n", "--max-datasets", default=0, help="Max datasets (0=all).")
+@click.option("-o", "--output", type=click.Path(), help="Output JSON file.")
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output.")
+def chembl(max_datasets: int, output: str, verbose: bool) -> None:
+    """Fetch assays from ChEMBL (bioactivity database)."""
+    from ..pharmacology.chembl import fetch_all_datasets, format_dataset
+
+    if verbose:
+        click.echo("Fetching assays from ChEMBL...")
+
+    datasets = fetch_all_datasets(
+        max_datasets=max_datasets if max_datasets > 0 else None,
+    )
+
+    if not datasets:
+        click.echo("No datasets fetched", err=True)
+        raise SystemExit(1)
+
+    formatted = [format_dataset(ds) for ds in datasets]
+
+    if output:
+        Path(output).write_text(json.dumps(formatted, indent=2))
+        click.echo(f"Saved {len(formatted)} assays to {output}")
+    else:
+        if verbose:
+            for ds in formatted[:10]:
+                click.echo(f"  {ds['id']}: {ds['name'][:50]}")
+        click.echo(f"Fetched {len(formatted)} assays")
+
+
+# ClinicalTrials command
+@main.command()
+@click.option("-n", "--max-datasets", default=0, help="Max datasets (0=all).")
+@click.option("-o", "--output", type=click.Path(), help="Output JSON file.")
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output.")
+def clinicaltrials(max_datasets: int, output: str, verbose: bool) -> None:
+    """Fetch studies from ClinicalTrials.gov."""
+    from ..medical.clinicaltrials import fetch_all_datasets, format_dataset
+
+    if verbose:
+        click.echo("Fetching studies from ClinicalTrials.gov...")
+
+    datasets = fetch_all_datasets(
+        max_datasets=max_datasets if max_datasets > 0 else None,
+    )
+
+    if not datasets:
+        click.echo("No datasets fetched", err=True)
+        raise SystemExit(1)
+
+    formatted = [format_dataset(ds) for ds in datasets]
+
+    if output:
+        Path(output).write_text(json.dumps(formatted, indent=2))
+        click.echo(f"Saved {len(formatted)} studies to {output}")
+    else:
+        if verbose:
+            for ds in formatted[:10]:
+                click.echo(f"  {ds['id']}: {ds['name'][:50]}")
+        click.echo(f"Fetched {len(formatted)} studies")
+
+
 # Database commands
 @main.group(invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @click.option("--help-recursive", is_flag=True, help="Show help for all commands.")
@@ -222,7 +318,9 @@ def db(ctx: click.Context, help_recursive: bool):
     "-s",
     "--sources",
     multiple=True,
-    type=click.Choice(["openneuro", "dandi", "physionet", "zenodo"]),
+    type=click.Choice(
+        ["openneuro", "dandi", "physionet", "zenodo", "geo", "chembl", "clinicaltrials"]
+    ),
     help="Sources to index (default: all).",
 )
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output.")
@@ -247,7 +345,11 @@ def db_build(sources: tuple, verbose: bool) -> None:
 @db.command("search")
 @click.argument("query", required=False)
 @click.option(
-    "-s", "--source", type=click.Choice(["openneuro", "dandi", "physionet", "zenodo"])
+    "-s",
+    "--source",
+    type=click.Choice(
+        ["openneuro", "dandi", "physionet", "zenodo", "geo", "chembl", "clinicaltrials"]
+    ),
 )
 @click.option("-m", "--modality", help="Filter by modality (mri, eeg, etc.).")
 @click.option("--min-subjects", type=int, help="Minimum subjects.")
