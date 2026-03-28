@@ -26,7 +26,7 @@ Usage:
     >>> results = db.search("alzheimer EEG", min_subjects=20)
 """
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 # Domain submodules
 from . import biology, database, general, medical, neuroscience, pharmacology
