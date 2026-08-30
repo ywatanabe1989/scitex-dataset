@@ -328,10 +328,17 @@ Default: all catalog sources.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>query</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – Full-text search over id, name, readme and tasks. Bare words are
+<li><p><strong>query</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – <p>Full-text search over id, name, readme and tasks. Bare words are
 ANDed, <code class="docutils literal notranslate"><span class="pre">&quot;quoted</span> <span class="pre">phrases&quot;</span></code> are phrases, <code class="docutils literal notranslate"><span class="pre">or</span></code> disjoins and a
 leading <code class="docutils literal notranslate"><span class="pre">-</span></code> negates. Malformed input matches nothing rather than
-raising, because the text came from a person.</p></li>
+raising, because the text came from a person.</p>
+<p>WORDS ARE STEMMED and English stopwords are dropped, which the
+previous tokeniser did neither of. So <code class="docutils literal notranslate"><span class="pre">studies</span></code> now finds a
+dataset that says <code class="docutils literal notranslate"><span class="pre">study</span></code> — a superset, and the reason to prefer
+it — but a query consisting only of stopwords (<code class="docutils literal notranslate"><span class="pre">the</span></code>, <code class="docutils literal notranslate"><span class="pre">of</span></code>)
+matches nothing rather than everything. Pass <code class="docutils literal notranslate"><span class="pre">text_config=&quot;simple&quot;</span></code>
+on the schema if a package ever needs the literal behaviour back.</p>
+</p></li>
 <li><p><strong>source</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – Filter by source: “openneuro”, “dandi”, “physionet”.</p></li>
 <li><p><strong>modality</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – Filter by modality (e.g., “mri”, “eeg”).</p></li>
 <li><p><strong>min_subjects</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</span>) – Minimum number of subjects.</p></li>
@@ -1067,10 +1074,17 @@ doing that per subcommand would pay for it every time.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>query</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – Full-text search over id, name, readme and tasks. Bare words are
+<li><p><strong>query</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – <p>Full-text search over id, name, readme and tasks. Bare words are
 ANDed, <code class="docutils literal notranslate"><span class="pre">&quot;quoted</span> <span class="pre">phrases&quot;</span></code> are phrases, <code class="docutils literal notranslate"><span class="pre">or</span></code> disjoins and a
 leading <code class="docutils literal notranslate"><span class="pre">-</span></code> negates. Malformed input matches nothing rather than
-raising, because the text came from a person.</p></li>
+raising, because the text came from a person.</p>
+<p>WORDS ARE STEMMED and English stopwords are dropped, which the
+previous tokeniser did neither of. So <code class="docutils literal notranslate"><span class="pre">studies</span></code> now finds a
+dataset that says <code class="docutils literal notranslate"><span class="pre">study</span></code> — a superset, and the reason to prefer
+it — but a query consisting only of stopwords (<code class="docutils literal notranslate"><span class="pre">the</span></code>, <code class="docutils literal notranslate"><span class="pre">of</span></code>)
+matches nothing rather than everything. Pass <code class="docutils literal notranslate"><span class="pre">text_config=&quot;simple&quot;</span></code>
+on the schema if a package ever needs the literal behaviour back.</p>
+</p></li>
 <li><p><strong>source</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – Filter by source: “openneuro”, “dandi”, “physionet”.</p></li>
 <li><p><strong>modality</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – Filter by modality (e.g., “mri”, “eeg”).</p></li>
 <li><p><strong>min_subjects</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</span>) – Minimum number of subjects.</p></li>
@@ -1099,6 +1113,11 @@ raising, because the text came from a person.</p></li>
 <p>Replaces the old path accessor. There is no file any more, and
 returning a path would be a lie a caller could act on — the CLI printed
 it beside a file size, and both facts stopped existing at once.</p>
+<p>RESOLVES WITHOUT CONNECTING when no store is open yet. Asking where the
+index WOULD be must not create it: <code class="docutils literal notranslate"><span class="pre">db</span> <span class="pre">build</span> <span class="pre">--dry-run</span></code> prints this
+line, and going through <a class="reference internal" href="#scitex_dataset.database.get_store" title="scitex_dataset.database.get_store"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_store()</span></code></a> would open a connection and
+run the schema DDL — a dry run whose whole promise is that it writes
+nothing.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span></p>

@@ -71,6 +71,11 @@ The index lives in the shared SciTeX store, so there is no path argument
 and no path in the stats. `scitex_dataset.database.store_description()`
 reports which store was resolved; `SCITEX_STORE_DSN` repoints it.
 
+Query words are stemmed and English stopwords are dropped, which the
+previous tokeniser did neither of: `studies` now finds a dataset that says
+`study`, and a query made only of stopwords matches nothing rather than
+everything.
+
 ## Domain submodules
 
 | Submodule | Sources |

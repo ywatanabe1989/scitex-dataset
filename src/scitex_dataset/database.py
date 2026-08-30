@@ -315,6 +315,13 @@ def search(
         ANDed, ``"quoted phrases"`` are phrases, ``or`` disjoins and a
         leading ``-`` negates. Malformed input matches nothing rather than
         raising, because the text came from a person.
+
+        WORDS ARE STEMMED and English stopwords are dropped, which the
+        previous tokeniser did neither of. So ``studies`` now finds a
+        dataset that says ``study`` — a superset, and the reason to prefer
+        it — but a query consisting only of stopwords (``the``, ``of``)
+        matches nothing rather than everything. Pass ``text_config="simple"``
+        on the schema if a package ever needs the literal behaviour back.
     source : str, optional
         Filter by source: "openneuro", "dandi", "physionet".
     modality : str, optional

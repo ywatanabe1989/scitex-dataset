@@ -388,8 +388,18 @@
 <span class="sd">    Replaces the old path accessor. There is no file any more, and</span>
 <span class="sd">    returning a path would be a lie a caller could act on — the CLI printed</span>
 <span class="sd">    it beside a file size, and both facts stopped existing at once.</span>
+
+<span class="sd">    RESOLVES WITHOUT CONNECTING when no store is open yet. Asking where the</span>
+<span class="sd">    index WOULD be must not create it: ``db build --dry-run`` prints this</span>
+<span class="sd">    line, and going through :func:`get_store` would open a connection and</span>
+<span class="sd">    run the schema DDL — a dry run whose whole promise is that it writes</span>
+<span class="sd">    nothing.</span>
 <span class="sd">    """</span>
-    <span class="k">return</span> <span class="n">get_store</span><span class="p">(</span><span class="n">store</span><span class="p">)</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span></div>
+    <span class="k">if</span> <span class="n">store</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">store</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_STORE</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_STORE</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">host_store</span><span class="p">(</span><span class="n">pkg</span><span class="o">=</span><span class="n">PKG</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"index"</span><span class="p">)</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span></div>
 
 
 
@@ -579,6 +589,13 @@
 <span class="sd">        ANDed, ``"quoted phrases"`` are phrases, ``or`` disjoins and a</span>
 <span class="sd">        leading ``-`` negates. Malformed input matches nothing rather than</span>
 <span class="sd">        raising, because the text came from a person.</span>
+
+<span class="sd">        WORDS ARE STEMMED and English stopwords are dropped, which the</span>
+<span class="sd">        previous tokeniser did neither of. So ``studies`` now finds a</span>
+<span class="sd">        dataset that says ``study`` — a superset, and the reason to prefer</span>
+<span class="sd">        it — but a query consisting only of stopwords (``the``, ``of``)</span>
+<span class="sd">        matches nothing rather than everything. Pass ``text_config="simple"``</span>
+<span class="sd">        on the schema if a package ever needs the literal behaviour back.</span>
 <span class="sd">    source : str, optional</span>
 <span class="sd">        Filter by source: "openneuro", "dandi", "physionet".</span>
 <span class="sd">    modality : str, optional</span>
