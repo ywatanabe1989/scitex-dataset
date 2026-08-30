@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>scitex_dataset.neuroscience.physionet &mdash; scitex-dataset v0.0.0</title>
+  <title>scitex_dataset.ai_for_science.biomysterybench &mdash; scitex-dataset v0.0.0</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
@@ -248,7 +248,7 @@
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
           <li class="breadcrumb-item"><a href="../../scitex_dataset.html">scitex_dataset</a></li>
-      <li class="breadcrumb-item active">scitex_dataset.neuroscience.physionet</li>
+      <li class="breadcrumb-item active">scitex_dataset.ai_for_science.biomysterybench</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -257,138 +257,296 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for scitex_dataset.neuroscience.physionet</h1><div class="highlight"><pre>
+  <h1>Source code for scitex_dataset.ai_for_science.biomysterybench</h1><div class="highlight"><pre>
 <span></span><span class="ch">#!/usr/bin/env python3</span>
 <span class="c1"># -*- coding: utf-8 -*-</span>
-<span class="c1"># Timestamp: "2026-01-29 22:40:00 (ywatanabe)"</span>
-<span class="c1"># File: /home/ywatanabe/proj/scitex-dataset/src/scitex_dataset/neuroscience/physionet.py</span>
+<span class="c1"># File: src/scitex_dataset/ai_for_science/biomysterybench.py</span>
 
-<span class="sd">"""</span>
-<span class="sd">PhysioNet dataset fetcher.</span>
+<span class="sd">"""BioMysteryBench dataset preparation.</span>
 
-<span class="sd">PhysioNet hosts physiological signal databases including EEG, ECG, EMG,</span>
-<span class="sd">and other biomedical signals.</span>
+<span class="sd">BioMysteryBench: biology-mystery problems with rubric-graded answers,</span>
+<span class="sd">hosted on Hugging Face Hub by Anthropic. Two variants:</span>
 
-<span class="sd">API: https://physionet.org/api/v1/</span>
+<span class="sd">- ``Anthropic/BioMysteryBench-preview``  — 5 problems, ~11 MB, public.</span>
+<span class="sd">- ``Anthropic/BioMysteryBench-full``     — 99 problems, ~159 GB, gated.</span>
 
-<span class="sd">Example:</span>
-<span class="sd">    &gt;&gt;&gt; from scitex_dataset.neuroscience import physionet</span>
-<span class="sd">    &gt;&gt;&gt; datasets = physionet.fetch_all_datasets(max_datasets=10)</span>
-<span class="sd">    &gt;&gt;&gt; formatted = [physionet.format_dataset(ds) for ds in datasets]</span>
+<span class="sd">Pipeline (raw → {for_solver, eval} contract — see :mod:`._base`):</span>
+
+<span class="sd">1. ``download(...)`` — snapshot-download the preview tree (default) or</span>
+<span class="sd">   the full set when ``download_full=True`` AND HF access is granted,</span>
+<span class="sd">   storing the upstream tree *as-is* under ``raw_dir`` (answers and all).</span>
+<span class="sd">   ``raw_dir`` is operator-private and never mounted into a capsule.</span>
+<span class="sd">2. ``standardize(...)`` — read ``raw_dir/problems.csv``, split into the</span>
+<span class="sd">   PER-CAPSULE agent-visible ``for_solver/`` view (one self-contained</span>
+<span class="sd">   ``capsule-NNN/`` dir per problem that ships an environment — the</span>
+<span class="sd">   EXTRACTED ``data/&lt;id&gt;.zip`` in ``input/``, a ``task.jsonl`` of only</span>
+<span class="sd">   that problem's row, the uniform submission schema/example, and a</span>
+<span class="sd">   README — plus a root ``index.jsonl`` MAPPER of friendly_id ↔ native_id,</span>
+<span class="sd">   no rubric) and an operator-side ``eval/answers.jsonl`` (carrying the</span>
+<span class="sd">   rubric) + ``eval/evaluate.py``. A problem's ``data`` points at</span>
+<span class="sd">   ``data/&lt;id&gt;.zip`` when present (extracted into its ``capsule-NNN/</span>
+<span class="sd">   input/``), else ``null`` (no capsule materialized). An agent binds</span>
+<span class="sd">   exactly one ``capsule-NNN/`` dir; ``eval`` is operator-only.</span>
+
+<span class="sd">NOTE on compute: the preview is small (~11 MB), the full set is multi-</span>
+<span class="sd">GB and must run on SLURM. ``standardize(...)`` is pure-Python on a small</span>
+<span class="sd">CSV plus per-capsule archive extraction and safe to run anywhere.</span>
 <span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">httpx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_httpx</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">scitex_dev.decorators</span><span class="w"> </span><span class="kn">import</span> <span class="n">supports_return_as</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BenchmarkPaths</span><span class="p">,</span> <span class="n">resolve_paths</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._manifest</span><span class="w"> </span><span class="kn">import</span> <span class="n">write_manifest</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._sources</span><span class="w"> </span><span class="kn">import</span> <span class="n">register_capsule_sources</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._standardize</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">render_evaluate_py</span><span class="p">,</span>
+    <span class="n">write_eval</span><span class="p">,</span>
+    <span class="n">write_for_solver_per_capsule</span><span class="p">,</span>
+<span class="p">)</span>
 
-<span class="n">PHYSIONET_API</span> <span class="o">=</span> <span class="s2">"https://physionet.org"</span>
+<span class="c1"># Canonical benchmark identity.</span>
+<span class="n">BENCHMARK</span> <span class="o">=</span> <span class="s2">"biomysterybench"</span>
+<span class="n">COHORT_ID</span> <span class="o">=</span> <span class="s2">"biomysterybench"</span>
+<span class="n">COHORT_NAME</span> <span class="o">=</span> <span class="s2">"BioMysteryBench"</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">"PHYSIONET_API"</span><span class="p">,</span>
-    <span class="s2">"fetch_datasets"</span><span class="p">,</span>
-    <span class="s2">"fetch_all_datasets"</span><span class="p">,</span>
-    <span class="s2">"format_dataset"</span><span class="p">,</span>
-<span class="p">]</span>
+<span class="n">HF_REPO_ID_PREVIEW</span> <span class="o">=</span> <span class="s2">"Anthropic/BioMysteryBench-preview"</span>
+<span class="n">HF_REPO_ID_FULL</span> <span class="o">=</span> <span class="s2">"Anthropic/BioMysteryBench-full"</span>
+<span class="n">HF_REPO_TYPE</span> <span class="o">=</span> <span class="s2">"dataset"</span>
+<span class="n">SOURCE_URL</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"https://huggingface.co/datasets/</span><span class="si">{</span><span class="n">HF_REPO_ID_PREVIEW</span><span class="si">}</span><span class="s2">"</span>
+
+<span class="c1"># Column carrying the rubric answer; moved to eval/, never in for_solver.</span>
+<span class="n">ORACLE_FIELD</span> <span class="o">=</span> <span class="s2">"answer_rubric"</span>
+
+<span class="c1"># Answer-bearing upstream files — kept in raw_dir, NEVER symlinked into</span>
+<span class="c1"># the agent-visible for_solver view.</span>
+<span class="n">ORACLE_FILENAMES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"problems.csv"</span><span class="p">,</span> <span class="s2">"problems.parquet"</span><span class="p">,</span> <span class="s2">"README.md"</span><span class="p">)</span>
+
+<span class="c1"># Default scorer mode baked into eval/evaluate.py — BMB answers are</span>
+<span class="c1"># rubric-graded (not auto-scorable), so evaluate.py marks them for</span>
+<span class="c1"># manual grading rather than computing a numeric/string score.</span>
+<span class="n">DEFAULT_MODE</span> <span class="o">=</span> <span class="s2">"rubric"</span>
+
+<span class="c1"># Subdir under raw_dir holding per-problem zipped environments.</span>
+<span class="n">_DATA_SUBDIR</span> <span class="o">=</span> <span class="s2">"data"</span>
 
 
-<div class="viewcode-block" id="fetch_datasets">
-<a class="viewcode-back" href="../../../api/scitex_dataset.html#scitex_dataset.fetch_datasets">[docs]</a>
-<span class="nd">@supports_return_as</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">fetch_datasets</span><span class="p">(</span><span class="n">page</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Fetch a single page of databases from PhysioNet."""</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="n">_httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">PHYSIONET_API</span><span class="si">}</span><span class="s2">/rest/database-list/"</span><span class="p">,</span>
-        <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">"page"</span><span class="p">:</span> <span class="n">page</span><span class="p">},</span>
-        <span class="n">timeout</span><span class="o">=</span><span class="mf">30.0</span><span class="p">,</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Standardize — pure-Python, network-free.</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">standardize</span><span class="p">(</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">raw_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">for_solver_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">eval_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">only</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">force</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">_</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Read ``raw_dir/problems.csv``, build the for_solver + eval views.</span>
+
+<span class="sd">    Each CSV row becomes one leak-safe task (``{task_id, benchmark,</span>
+<span class="sd">    prompt, data}``) + one answer (``{rubric}``). A task's ``data``</span>
+<span class="sd">    points at ``data/&lt;id&gt;.zip`` when that environment exists under</span>
+<span class="sd">    ``raw/data``, else ``null``. The rubric stays in operator-only</span>
+<span class="sd">    ``eval/answers.jsonl``.</span>
+
+<span class="sd">    ``for_solver`` is written in the PER-CAPSULE shape: one self-contained</span>
+<span class="sd">    ``capsule-NNN/`` dir per problem that ships a ``data/&lt;id&gt;.zip``</span>
+<span class="sd">    environment (friendly id), each holding the EXTRACTED archive in</span>
+<span class="sd">    ``input/``, a ``task.jsonl`` of only that problem's row, the uniform</span>
+<span class="sd">    submission schema/example, and a README — plus a root ``index.jsonl``</span>
+<span class="sd">    MAPPER (friendly_id ↔ native_id). An agent binds exactly one</span>
+<span class="sd">    ``capsule-NNN/`` dir. A problem with ``data: null`` (no environment)</span>
+<span class="sd">    materializes no capsule.</span>
+
+<span class="sd">    ``only`` (a friendly ``capsule-NNN`` id OR a native capsule id)</span>
+<span class="sd">    materializes just that one capsule's dir; the mapper is always written</span>
+<span class="sd">    in full. ``force`` re-extracts capsules already present.</span>
+<span class="sd">    """</span>
+    <span class="n">src</span> <span class="o">=</span> <span class="n">raw_dir</span> <span class="o">/</span> <span class="s2">"problems.csv"</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">src</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"biomysterybench: upstream source not found: </span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">. "</span>
+            <span class="s2">"Did you run download(...)?"</span>
+        <span class="p">)</span>
+
+    <span class="n">data_dir</span> <span class="o">=</span> <span class="n">raw_dir</span> <span class="o">/</span> <span class="n">_DATA_SUBDIR</span>
+    <span class="n">tasks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">answers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="n">src</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"r"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh_in</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span><span class="n">fh_in</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="n">rid</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span>
+            <span class="n">task_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"biomysterybench/</span><span class="si">{</span><span class="n">rid</span><span class="si">}</span><span class="s2">"</span>
+            <span class="n">zip_path</span> <span class="o">=</span> <span class="n">data_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">rid</span><span class="si">}</span><span class="s2">.zip"</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">"task_id"</span><span class="p">:</span> <span class="n">task_id</span><span class="p">,</span>
+                    <span class="s2">"benchmark"</span><span class="p">:</span> <span class="n">BENCHMARK</span><span class="p">,</span>
+                    <span class="s2">"prompt"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">"question"</span><span class="p">],</span>
+                    <span class="s2">"data"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"./data/</span><span class="si">{</span><span class="n">rid</span><span class="si">}</span><span class="s2">.zip"</span> <span class="k">if</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="n">answers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">"task_id"</span><span class="p">:</span> <span class="n">task_id</span><span class="p">,</span>
+                    <span class="s2">"answer"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"rubric"</span><span class="p">:</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ORACLE_FIELD</span><span class="p">)},</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+    <span class="n">fs</span> <span class="o">=</span> <span class="n">write_for_solver_per_capsule</span><span class="p">(</span>
+        <span class="n">for_solver_dir</span><span class="o">=</span><span class="n">for_solver_dir</span><span class="p">,</span>
+        <span class="n">tasks</span><span class="o">=</span><span class="n">tasks</span><span class="p">,</span>
+        <span class="n">raw_dir</span><span class="o">=</span><span class="n">raw_dir</span><span class="p">,</span>
+        <span class="n">only</span><span class="o">=</span><span class="n">only</span><span class="p">,</span>
+        <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span></div>
+    <span class="n">ev</span> <span class="o">=</span> <span class="n">write_eval</span><span class="p">(</span>
+        <span class="n">eval_dir</span><span class="o">=</span><span class="n">eval_dir</span><span class="p">,</span>
+        <span class="n">answers</span><span class="o">=</span><span class="n">answers</span><span class="p">,</span>
+        <span class="n">evaluate_py_source</span><span class="o">=</span><span class="n">render_evaluate_py</span><span class="p">(</span><span class="n">DEFAULT_MODE</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">sr</span> <span class="o">=</span> <span class="n">register_capsule_sources</span><span class="p">(</span><span class="n">tasks</span><span class="o">=</span><span class="n">tasks</span><span class="p">,</span> <span class="n">raw_dir</span><span class="o">=</span><span class="n">raw_dir</span><span class="p">,</span> <span class="n">eval_dir</span><span class="o">=</span><span class="n">eval_dir</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"for_solver"</span><span class="p">:</span> <span class="n">fs</span><span class="p">,</span>
+        <span class="s2">"eval"</span><span class="p">:</span> <span class="n">ev</span><span class="p">,</span>
+        <span class="s2">"sources"</span><span class="p">:</span> <span class="n">sr</span><span class="p">,</span>
+        <span class="s2">"n_tasks"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">tasks</span><span class="p">),</span>
+        <span class="s2">"default_mode"</span><span class="p">:</span> <span class="n">DEFAULT_MODE</span><span class="p">,</span>
+    <span class="p">}</span>
 
 
-
-<div class="viewcode-block" id="fetch_all_datasets">
-<a class="viewcode-back" href="../../../api/scitex_dataset.html#scitex_dataset.fetch_all_datasets">[docs]</a>
-<span class="nd">@supports_return_as</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">fetch_all_datasets</span><span class="p">(</span>
-    <span class="n">max_datasets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">"""Fetch all databases from PhysioNet with pagination."""</span>
-    <span class="n">all_datasets</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">page</span> <span class="o">=</span> <span class="mi">1</span>
-
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="n">fetch_datasets</span><span class="p">(</span><span class="n">page</span><span class="o">=</span><span class="n">page</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">_httpx</span><span class="o">.</span><span class="n">HTTPStatusError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"HTTP Error: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="k">break</span>
-        <span class="k">except</span> <span class="n">_httpx</span><span class="o">.</span><span class="n">RequestError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Request Error: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="k">break</span>
-
-        <span class="c1"># PhysioNet returns a list directly or paginated dict</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-            <span class="n">databases</span> <span class="o">=</span> <span class="n">result</span>
-            <span class="n">has_next</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">databases</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"results"</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"databases"</span><span class="p">,</span> <span class="p">[]))</span>
-            <span class="n">has_next</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"next"</span><span class="p">))</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">databases</span><span class="p">:</span>
-            <span class="k">break</span>
-
-        <span class="n">all_datasets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">databases</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">logger</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Fetched </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_datasets</span><span class="p">)</span><span class="si">}</span><span class="s2"> databases..."</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">max_datasets</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_datasets</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_datasets</span><span class="p">:</span>
-            <span class="n">all_datasets</span> <span class="o">=</span> <span class="n">all_datasets</span><span class="p">[:</span><span class="n">max_datasets</span><span class="p">]</span>
-            <span class="k">break</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_next</span><span class="p">:</span>
-            <span class="k">break</span>
-
-        <span class="n">page</span> <span class="o">+=</span> <span class="mi">1</span>
-
-    <span class="k">return</span> <span class="n">all_datasets</span></div>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Download — HF snapshot stored as-is under raw_dir.</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">raw_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">download_full</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">hf_token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">_</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Pull the BMB HF snapshot into ``raw_dir`` exactly as-is.</span>
 
-<div class="viewcode-block" id="format_dataset">
-<a class="viewcode-back" href="../../../api/scitex_dataset.html#scitex_dataset.format_dataset">[docs]</a>
-<span class="nd">@supports_return_as</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">format_dataset</span><span class="p">(</span><span class="n">database</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Extract and format PhysioNet database information."""</span>
-    <span class="c1"># Handle different response formats</span>
-    <span class="n">slug</span> <span class="o">=</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"slug"</span><span class="p">,</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"short_name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">))</span>
-    <span class="n">title</span> <span class="o">=</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"title"</span><span class="p">,</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">,</span> <span class="s2">"N/A"</span><span class="p">))</span>
+<span class="sd">    Preview snapshot (~11 MB, public) is always attempted. When</span>
+<span class="sd">    ``download_full=True`` and HF access is granted the full set</span>
+<span class="sd">    (~159 GB, gated) is pulled afterwards. ``huggingface_hub`` is</span>
+<span class="sd">    required. No file is relocated — the answer-bearing artifacts stay</span>
+<span class="sd">    in the operator-private ``raw_dir`` and leak-prevention happens at</span>
+<span class="sd">    ``standardize`` time (only ``for_solver`` is ever mounted).</span>
+<span class="sd">    """</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">huggingface_hub</span><span class="w"> </span><span class="kn">import</span> <span class="n">snapshot_download</span>
+    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s2">"biomysterybench.download requires huggingface_hub. "</span>
+            <span class="s2">"Install with: pip install 'scitex-dataset[huggingface]'"</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+
+    <span class="n">raw_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">pulled</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># snapshot_download already does per-file etag/sha skip natively, so</span>
+    <span class="c1"># re-runs only re-pull files whose upstream content changed — no</span>
+    <span class="c1"># extra integrity bookkeeping needed on our side.</span>
+    <span class="n">snapshot_download</span><span class="p">(</span>
+        <span class="n">repo_id</span><span class="o">=</span><span class="n">HF_REPO_ID_PREVIEW</span><span class="p">,</span>
+        <span class="n">repo_type</span><span class="o">=</span><span class="n">HF_REPO_TYPE</span><span class="p">,</span>
+        <span class="n">local_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">raw_dir</span><span class="p">),</span>
+        <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+        <span class="n">token</span><span class="o">=</span><span class="n">hf_token</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">pulled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">HF_REPO_ID_PREVIEW</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">download_full</span><span class="p">:</span>
+        <span class="n">snapshot_download</span><span class="p">(</span>
+            <span class="n">repo_id</span><span class="o">=</span><span class="n">HF_REPO_ID_FULL</span><span class="p">,</span>
+            <span class="n">repo_type</span><span class="o">=</span><span class="n">HF_REPO_TYPE</span><span class="p">,</span>
+            <span class="n">local_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">raw_dir</span><span class="p">),</span>
+            <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+            <span class="n">token</span><span class="o">=</span><span class="n">hf_token</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">pulled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">HF_REPO_ID_FULL</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">{</span>
-        <span class="s2">"id"</span><span class="p">:</span> <span class="n">slug</span><span class="p">,</span>
-        <span class="s2">"name"</span><span class="p">:</span> <span class="n">title</span><span class="p">,</span>
-        <span class="s2">"version"</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"version"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
-        <span class="s2">"abstract"</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"abstract"</span><span class="p">,</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"description"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)),</span>
-        <span class="s2">"doi"</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"doi"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
-        <span class="s2">"license"</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"license"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"license"</span><span class="p">),</span> <span class="nb">dict</span><span class="p">)</span>
-        <span class="k">else</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"license"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
-        <span class="s2">"n_subjects"</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"subject_count"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-        <span class="s2">"n_records"</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"record_count"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-        <span class="s2">"size_gb"</span><span class="p">:</span> <span class="nb">round</span><span class="p">((</span><span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"total_size"</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span><span class="o">**</span><span class="mi">3</span><span class="p">),</span> <span class="mi">2</span><span class="p">),</span>
-        <span class="s2">"publish_date"</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"publish_date"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
-        <span class="s2">"url"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"https://physionet.org/content/</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">/"</span> <span class="k">if</span> <span class="n">slug</span> <span class="k">else</span> <span class="s2">""</span><span class="p">,</span>
-        <span class="c1"># PhysioNet-specific</span>
-        <span class="s2">"data_access"</span><span class="p">:</span> <span class="n">database</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_access"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
-    <span class="p">}</span></div>
+        <span class="s2">"raw_dir"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">raw_dir</span><span class="p">),</span>
+        <span class="s2">"snapshots_pulled"</span><span class="p">:</span> <span class="n">pulled</span><span class="p">,</span>
+    <span class="p">}</span>
 
 
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Orchestrator</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">prepare</span><span class="p">(</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">paths</span><span class="p">:</span> <span class="n">BenchmarkPaths</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dataset_root</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"v0-unstamped"</span><span class="p">,</span>
+    <span class="n">skip_download</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">download_full</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">_</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Run the full BioMysteryBench preparation pipeline.</span>
+
+<span class="sd">    Pass ``download_full=True`` to attempt the gated 159 GB set after</span>
+<span class="sd">    the preview. Pass ``skip_download=True`` to skip both HF pulls if</span>
+<span class="sd">    the upstream CSV has already been hand-staged under ``raw_dir``.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">paths</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">paths</span> <span class="o">=</span> <span class="n">resolve_paths</span><span class="p">(</span><span class="n">BENCHMARK</span><span class="p">,</span> <span class="n">dataset_root</span><span class="o">=</span><span class="n">dataset_root</span><span class="p">)</span>
+
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"benchmark"</span><span class="p">:</span> <span class="n">BENCHMARK</span><span class="p">,</span> <span class="s2">"paths"</span><span class="p">:</span> <span class="n">paths</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()}</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">skip_download</span><span class="p">:</span>
+        <span class="n">out</span><span class="p">[</span><span class="s2">"download"</span><span class="p">]</span> <span class="o">=</span> <span class="n">download</span><span class="p">(</span>
+            <span class="n">raw_dir</span><span class="o">=</span><span class="n">paths</span><span class="o">.</span><span class="n">raw_dir</span><span class="p">,</span>
+            <span class="n">download_full</span><span class="o">=</span><span class="n">download_full</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="s2">"standardize"</span><span class="p">]</span> <span class="o">=</span> <span class="n">standardize</span><span class="p">(</span>
+        <span class="n">raw_dir</span><span class="o">=</span><span class="n">paths</span><span class="o">.</span><span class="n">raw_dir</span><span class="p">,</span>
+        <span class="n">for_solver_dir</span><span class="o">=</span><span class="n">paths</span><span class="o">.</span><span class="n">for_solver_dir</span><span class="p">,</span>
+        <span class="n">eval_dir</span><span class="o">=</span><span class="n">paths</span><span class="o">.</span><span class="n">eval_dir</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">manifest_path</span> <span class="o">=</span> <span class="n">write_manifest</span><span class="p">(</span>
+        <span class="n">manifest_dir</span><span class="o">=</span><span class="n">paths</span><span class="o">.</span><span class="n">manifest_dir</span><span class="p">,</span>
+        <span class="nb">id</span><span class="o">=</span><span class="n">COHORT_ID</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">COHORT_NAME</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">,</span>
+        <span class="n">source_url</span><span class="o">=</span><span class="n">SOURCE_URL</span><span class="p">,</span>
+        <span class="n">benchmark</span><span class="o">=</span><span class="n">BENCHMARK</span><span class="p">,</span>
+        <span class="n">tracked_paths</span><span class="o">=</span><span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="s2">"standardize"</span><span class="p">][</span><span class="s2">"for_solver"</span><span class="p">][</span><span class="s2">"index"</span><span class="p">])],</span>
+        <span class="n">tracked_root</span><span class="o">=</span><span class="n">paths</span><span class="o">.</span><span class="n">for_solver_dir</span><span class="p">,</span>
+        <span class="n">mask_seed</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="s2">"manifest"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">manifest_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"BENCHMARK"</span><span class="p">,</span>
+    <span class="s2">"COHORT_ID"</span><span class="p">,</span>
+    <span class="s2">"COHORT_NAME"</span><span class="p">,</span>
+    <span class="s2">"HF_REPO_ID_PREVIEW"</span><span class="p">,</span>
+    <span class="s2">"HF_REPO_ID_FULL"</span><span class="p">,</span>
+    <span class="s2">"HF_REPO_TYPE"</span><span class="p">,</span>
+    <span class="s2">"SOURCE_URL"</span><span class="p">,</span>
+    <span class="s2">"DEFAULT_MODE"</span><span class="p">,</span>
+    <span class="s2">"ORACLE_FIELD"</span><span class="p">,</span>
+    <span class="s2">"ORACLE_FILENAMES"</span><span class="p">,</span>
+    <span class="s2">"download"</span><span class="p">,</span>
+    <span class="s2">"standardize"</span><span class="p">,</span>
+    <span class="s2">"prepare"</span><span class="p">,</span>
+<span class="p">]</span>
 
 <span class="c1"># EOF</span>
 </pre></div>

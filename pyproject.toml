@@ -37,7 +37,12 @@ classifiers = [
 dependencies = [
     "httpx>=0.24.0",
     "click>=8.0.0",
-    "scitex-dev>=0.11.7",
+    # HARD dependency, not an extra. The dataset index is `scitex_dev.store`
+    # — there is no local fallback and nothing to degrade to, so a lean
+    # install that lacked it would import fine and fail at the first search.
+    # The floor is 0.57.0 because that is where the store's read-by-criteria
+    # surface (`Store.search` / `Query` / `Schema(text_search=...)`) landed.
+    "scitex-dev>=0.57.0",
     "scitex-config>=0.3.0",
 ]
 
