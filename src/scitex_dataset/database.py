@@ -123,8 +123,18 @@ def store_description(store: "Store | None" = None) -> str:
     Replaces the old path accessor. There is no file any more, and
     returning a path would be a lie a caller could act on — the CLI printed
     it beside a file size, and both facts stopped existing at once.
+
+    RESOLVES WITHOUT CONNECTING when no store is open yet. Asking where the
+    index WOULD be must not create it: ``db build --dry-run`` prints this
+    line, and going through :func:`get_store` would open a connection and
+    run the schema DDL — a dry run whose whole promise is that it writes
+    nothing.
     """
-    return get_store(store).target.describe()
+    if store is not None:
+        return store.target.describe()
+    if _STORE is not None:
+        return _STORE.target.describe()
+    return host_store(pkg=PKG, name="index").describe()
 
 
 def _fetchers(source: str):

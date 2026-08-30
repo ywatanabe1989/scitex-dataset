@@ -152,6 +152,19 @@ def test_the_index_keeps_the_fetchers_record_verbatim():
     assert values["record"] == dataset
 
 
+def test_store_description_names_the_store_it_was_given(index_store):
+    """The CLI prints this where it used to print a path. It must describe
+    the store actually in use, not the one this host would resolve."""
+    # Arrange
+    store = index_store
+
+    # Act
+    described = database.store_description(store=store)
+
+    # Assert
+    assert described == store.target.describe()
+
+
 def test_the_schema_declares_its_searchable_fields():
     # Arrange
     expected = ("id", "name", "readme", "tasks")
