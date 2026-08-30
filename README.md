@@ -108,7 +108,8 @@ scitex_dataset/
 ├── _sources.py            ← source registry (id → fetcher)
 ├── _config.py             ← PriorityConfig (cli > yaml > env > default)
 ├── _branding.py           ← CLI banner / version helpers
-├── database.py            ← local SQLite cache (db_build / db_search)
+├── _index_schema.py       ← what a dataset record is (store Schema)
+├── database.py            ← the shared-store index (db_build / db_search)
 ├── search.py              ← cross-source search + filter_results
 ├── neuroscience/          ← openneuro, dandi, physionet
 ├── biology/               ← geo, figshare, zenodo
@@ -151,7 +152,7 @@ top = filter_results(
 # 3) Search HuggingFace Hub directly (on-demand, no catalog).
 hf_hits = huggingface_search("biology", limit=20)
 
-# 4) Build the local SQLite + FTS5 index for offline queries.
+# 4) Build the full-text dataset index in the shared SciTeX store.
 db_build()
 db_search("Alzheimer EEG")
 
@@ -208,11 +209,11 @@ AI agents can discover and query neuroscience datasets autonomously.
 | `dataset_filter_results` | Filter / rank fetched datasets in memory |
 | `dataset_<src>_fetch` | One per catalog source (10 total) |
 | `dataset_huggingface_fetch` / `_search` / `_info` / `_download_file` | HuggingFace family |
-| `dataset_db_build` / `_search` / `_show_stats` | Local SQLite + FTS5 index |
+| `dataset_db_build` / `_search` / `_show_stats` | Full-text dataset index |
 | `dataset_skills_list` / `_get` | Bundled skill pages |
 
 <sub><b>Table 2.</b> 21 MCP tools across catalog fetchers, HuggingFace,
-the local index, and skill introspection. Every MCP tool has a matching
+the dataset index, and skill introspection. Every MCP tool has a matching
 public Python alias (e.g. ``scitex_dataset.openneuro_fetch``).</sub>
 
 ```bash
@@ -259,7 +260,7 @@ flowchart LR
     A --> P["pharmacology/<br/>chembl · moleculenet"]
     A --> G["general/<br/>huggingface · openml"]
     N & B & M & P & G --> F["filter_results()"]
-    F --> D["local SQLite cache<br/>(database.py)"]
+    F --> D["shared SciTeX store<br/>(database.py)"]
     D --> O["DataFrame · JSON · download"]
 ```
 
